@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+rule_files:
+  - /etc/prometheus/alerts.yml
+scrape_configs:
+  - job_name: api
+    static_configs: [{ targets: ["api:9090"] }]
+  - job_name: worker
+    static_configs: [{ targets: ["worker:9090"] }]
+  - job_name: emqx
+    metrics_path: /api/v5/prometheus/stats
+    basic_auth:
+      username: iwillbegoogler-api
+      password_file: /etc/prometheus/emqx_secret
+    static_configs: [{ targets: ["emqx:18083"] }]
+  - job_name: postgres
+    static_configs: [{ targets: ["postgres-exporter:9187"] }]
+  - job_name: redis
+    static_configs: [{ targets: ["redis-exporter:9121"] }]
