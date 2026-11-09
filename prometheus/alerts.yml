@@ -41,3 +41,34 @@ groups:
         annotations:
           description: "See iblog_webhook_attempts_total by result; a single broken endpoint can cause this."
           summary: "More than half of webhook attempts are failing"
+  - name: infra
+    interval: 30s
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} ({{ $labels.instance }}) is down"
+      - alert: HostMemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Less than 10% memory available"
+      - alert: HostDiskLow
+        expr: node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk {{ $labels.mountpoint }} below 10% free"
+      - alert: HostCpuHigh
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU above 90% for 15m"

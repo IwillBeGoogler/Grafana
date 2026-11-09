@@ -1,0 +1,6 @@
+# No receiver configured yet: alerts visible at http://localhost:9093 only.
+# For Telegram: cp alertmanager.yml.example alertmanager.yml, set chat_id, put token in ../telegram_token.
+route:
+  receiver: none
+receivers:
+  - name: none

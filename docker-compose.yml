@@ -1,5 +1,5 @@
 # Lean monitoring stack for IWillBeGoogler. Joins the app network (iblog_default) and scrapes it.
-# Memory budget: ~250M total.
+# Memory budget: ~300M total.
 name: iblog-monitoring
 
 x-common: &common
@@ -52,6 +52,37 @@ services:
     depends_on: [prometheus]
     deploy: { resources: { limits: { memory: 112M, cpus: "0.5" } } }
 
+  alertmanager:
+    <<: *common
+    image: prom/alertmanager:v0.28.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --data.retention=72h
+    ports: ["127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"]
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./telegram_token:/etc/alertmanager/telegram_token:ro
+      - alertmanagerdata:/alertmanager
+    deploy: { resources: { limits: { memory: 32M, cpus: "0.1" } } }
+
+  node-exporter:
+    <<: *common
+    image: prom/node-exporter:v1.9.1
+    command:
+      - --path.rootfs=/host
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.meminfo
+      - --collector.filesystem
+      - --collector.loadavg
+      - --collector.netdev
+      - --collector.diskstats
+      - --collector.uname
+    pid: host
+    volumes: ["/:/host:ro"]
+    deploy: { resources: { limits: { memory: 24M, cpus: "0.1" } } }
+
   postgres-exporter:
     <<: *common
     image: prometheuscommunity/postgres-exporter:v0.17.1
@@ -76,3 +107,4 @@ networks:
 volumes:
   prometheusdata:
   grafanadata:
+  alertmanagerdata:
