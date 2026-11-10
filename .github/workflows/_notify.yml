@@ -1,0 +1,56 @@
+name: notify
+
+# Reusable: one Telegram message with the result of a CI or CD run (the caller passes toJSON(needs)).
+# Never fails the caller. Environment vars: TELEGRAM_CHAT_ID, TELEGRAM_TOPIC_ID (optional); secret: TELEGRAM_BOT_TOKEN.
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true, description: "GitHub environment holding the Telegram settings" }
+      mode: { type: string, required: true, description: "ci | cd" }
+      results: { type: string, required: true, description: "toJSON(needs) of the caller" }
+      tag: { type: string, default: "", description: "image tag (cd only)" }
+      title: { type: string, default: "", description: "message line; default: PR title or commit message" }
+      health-url: { type: string, default: "", description: "cd: URL checked after a successful deploy (shown as healthz 200)" }
+    secrets:
+      TELEGRAM_BOT_TOKEN: { required: false }
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: Notify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    continue-on-error: true
+    permissions:
+      contents: read
+      actions: read # duration and the log of failed jobs
+    environment:
+      name: ${{ inputs.environment }}
+      deployment: false
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+
+      # Values go through env, never ${{ }} inside run: (script injection).
+      - name: Send Telegram message
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+          TOPIC_ID: ${{ vars.TELEGRAM_TOPIC_ID }}
+          MODE: ${{ inputs.mode }}
+          RESULTS: ${{ inputs.results }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          TITLE: ${{ inputs.title || github.event.pull_request.title || github.event.head_commit.message || 'manual run' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.event.pull_request.html_url || format('{0}/{1}/commit/{2}', github.server_url, github.repository, github.sha) }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          HEALTH_URL: ${{ inputs.health-url }}
+        run: bash .github/scripts/notify.sh

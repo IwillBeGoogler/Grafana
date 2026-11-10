@@ -40,17 +40,19 @@ services:
       GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
       GF_PLUGINS_PREINSTALL_DISABLED: "true"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
-      GF_UNIFIED_ALERTING_ENABLED: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+      # same Telegram bot and chat as CI/CD and Alertmanager; the placeholder keeps provisioning valid until .env is filled
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-set-me-in-env}
       GF_LOG_LEVEL: warn
       GOMAXPROCS: "1"
-      GOMEMLIMIT: 80MiB
+      GOMEMLIMIT: 128MiB
     ports: ["127.0.0.1:${GRAFANA_PORT:-3200}:3000"]
     volumes:
       - grafanadata:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on: [prometheus, tempo, loki, jaeger]
-    deploy: { resources: { limits: { memory: 112M, cpus: "0.5" } } }
+    deploy: { resources: { limits: { memory: 160M, cpus: "0.5" } } }
 
   alertmanager:
     <<: *common

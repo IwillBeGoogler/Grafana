@@ -17,9 +17,10 @@ receivers:
         parse_mode: HTML
         disable_notifications: false
         message: |-
-          {{ if eq .Status "firing" }}🔴 <b>Alert firing</b>{{ else }}✅ <b>Resolved</b>{{ end }}{{ with .CommonLabels.severity }} · {{ . }}{{ end }}
+          {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}🔥 <b>Alert firing</b>{{ else }}⚠️ <b>Alert firing</b>{{ end }}{{ else }}✅ <b>Resolved</b>{{ end }}
           {{ range .Alerts }}
-          <b>{{ .Labels.alertname }}</b>{{ with .Labels.instance }} · <code>{{ . }}</code>{{ end }}
-          {{ .Annotations.summary }}{{ with .Annotations.description }}
-          {{ . }}{{ end }}
+          🔔 <b>{{ .Labels.alertname }}</b>{{ with .Labels.severity }} · <code>{{ . }}</code>{{ end }}{{ with .Labels.instance }}
+          🖥 <code>{{ . }}</code>{{ end }}
+          💬 <i>{{ .Annotations.summary }}</i>{{ with .Annotations.description }}
+          📝 {{ . }}{{ end }}
           {{ end }}

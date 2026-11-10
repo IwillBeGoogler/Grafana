@@ -1,0 +1,22 @@
+apiVersion: 1
+# Same Telegram bot and chat as the CI/CD messages and the Alertmanager receiver.
+# TELEGRAM_BOT_TOKEN comes from .env (see docker-compose.yml).
+contactPoints:
+  - orgId: 1
+    name: telegram
+    receivers:
+      - uid: telegram
+        type: telegram
+        disableResolveMessage: false
+        settings:
+          botToken: $TELEGRAM_BOT_TOKEN
+          chatid: "5032018108" # TELEGRAM_CHAT_ID of the CI/CD bot (a literal: env expansion turns it into a number)
+          parse_mode: HTML
+          message: |-
+            {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}🔥 <b>Alert firing</b>{{ else }}⚠️ <b>Alert firing</b>{{ end }}{{ else }}✅ <b>Resolved</b>{{ end }}
+            {{ range .Alerts }}
+            🔔 <b>{{ .Labels.alertname }}</b>{{ with .Labels.severity }} · <code>{{ . }}</code>{{ end }}{{ with .Labels.instance }}
+            🖥 <code>{{ . }}</code>{{ end }}
+            💬 <i>{{ .Annotations.summary }}</i>{{ with .Annotations.description }}
+            📝 {{ . }}{{ end }}
+            {{ end }}

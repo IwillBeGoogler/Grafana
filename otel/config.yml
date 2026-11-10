@@ -13,9 +13,6 @@ exporters:
   otlp/jaeger:
     endpoint: jaeger:4317
     tls: { insecure: true }
-  otlp/jaeger:
-    endpoint: jaeger:4317
-    tls: { insecure: true }
   otlphttp/loki:
     endpoint: http://loki:3100/otlp
   prometheus:

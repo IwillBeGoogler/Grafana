@@ -1,0 +1,37 @@
+apiVersion: 1
+# Grafana-managed rules (edit them in Grafana: Alerting > Alert rules). They cover what prometheus/alerts.yml does not;
+# the Prometheus rules stay where they are and show up here as data-source-managed rules.
+groups:
+  - orgId: 1
+    name: iwillbegoogler-api
+    folder: IWillBeGoogler
+    interval: 1m
+    rules:
+      - uid: api-5xx-rate
+        title: ApiErrorRate
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: critical }
+        annotations:
+          summary: "API 5xx above 3% for 10 minutes"
+          description: "Share of 5xx responses over all API routes. Check the API logs and Tempo/Jaeger traces."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: 'sum(rate(http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.000000001)'
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions: [{ evaluator: { type: gt, params: [0.03] } }]
