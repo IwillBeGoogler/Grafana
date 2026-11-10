@@ -5,7 +5,9 @@
 #   env: SRC                  checkout of this repo (config files are copied to DEPLOY_DIR and bind-mounted from there)
 #        TELEGRAM_BOT_TOKEN   bot token for Alertmanager and Grafana alerts (GitHub environment secret)
 #        DEPLOY_DIR           default /opt/monitoring
-#   The datastore passwords come from /run/iwillbegoogler/env (rendered from Vault by iwillbegoogler-secrets).
+#   The passwords come from /run/iwillbegoogler/env (rendered from Vault by iwillbegoogler-secrets). Postgres and Redis: the read-only
+#   monitoring user `grafana` (pg_monitor + read-only transactions / an ACL with INFO, PING, SLOWLOG, LATENCY, MEMORY only),
+#   not the app credentials.
 #
 # Every service is replaced one by one: the old container is kept stopped until the new one runs, otherwise it is
 # restored. Data lives in docker volumes (iwillbegoogler-monitoring-*), so a rollout never touches metrics, traces or logs.
@@ -23,7 +25,7 @@ set -a
 # shellcheck disable=SC1091
 . /run/iwillbegoogler/env
 set +a
-: "${POSTGRES_PASSWORD:?}" "${EMQX_API_SECRET:?}"
+: "${GRAFANA_PG_PASSWORD:?}" "${GRAFANA_REDIS_PASSWORD:?}" "${EMQX_API_SECRET:?}"
 
 install -d "$DEPLOY_DIR" "$DEPLOY_DIR/secrets"
 for d in prometheus alertmanager otel jaeger loki tempo grafana; do
@@ -32,9 +34,10 @@ done
 rm -f "$DEPLOY_DIR/alertmanager/alertmanager.yml.example"
 # the containers run as non-root users, so these two files must be readable; the dir is not listable by others
 install -d -m 0711 "$DEPLOY_DIR/secrets"
-# install replaces the file (a plain redirect into the read-only file of the previous rollout would fail)
-printf '%s' "$EMQX_API_SECRET" | install -m 0444 /dev/stdin "$DEPLOY_DIR/secrets/emqx_secret"
-printf '%s' "$TELEGRAM_BOT_TOKEN" | install -m 0444 /dev/stdin "$DEPLOY_DIR/secrets/telegram_token"
+# write to a temp file and move it over: a plain redirect into the read-only file of the previous rollout would fail
+write_secret() { printf '%s' "$2" >"$1.new" && chmod 0444 "$1.new" && mv -f "$1.new" "$1"; }
+write_secret "$DEPLOY_DIR/secrets/emqx_secret" "$EMQX_API_SECRET"
+write_secret "$DEPLOY_DIR/secrets/telegram_token" "$TELEGRAM_BOT_TOKEN"
 
 # --- replace one container ------------------------------------------------------
 logopts=(--log-driver json-file --log-opt max-size=5m --log-opt max-file=2)
@@ -112,10 +115,10 @@ run node-exporter "$NODE" 24m 0.1 --pid host -v /:/host:ro \
 	--collector.filesystem --collector.loadavg --collector.netdev --collector.diskstats --collector.uname
 
 run postgres-exporter "$PGX" 24m 0.1 \
-	-e "DATA_SOURCE_NAME=postgres://blog:${POSTGRES_PASSWORD}@${PG_HOST}:5432/blog?sslmode=disable" \
+	-e "DATA_SOURCE_NAME=postgres://grafana:${GRAFANA_PG_PASSWORD}@${PG_HOST}:5432/blog?sslmode=disable" \
 	"$PGX" --no-collector.wal --no-collector.stat_bgwriter
 
-run redis-exporter "$REDISX" 16m 0.1 -e "REDIS_ADDR=redis://${REDIS_HOST}:6379" -e "REDIS_PASSWORD=${REDIS_PASSWORD:-}" \
+run redis-exporter "$REDISX" 16m 0.1 -e "REDIS_ADDR=redis://${REDIS_HOST}:6379" -e REDIS_USER=grafana -e "REDIS_PASSWORD=${GRAFANA_REDIS_PASSWORD}" \
 	"$REDISX"
 
 run grafana "$GRAFANA" 160m 0.5 -p 127.0.0.1:3200:3000 \
