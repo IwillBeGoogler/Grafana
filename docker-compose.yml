@@ -61,6 +61,7 @@ services:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
       - --data.retention=72h
+      - --cluster.listen-address= # single node: no HA gossip
     ports: ["127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"]
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro

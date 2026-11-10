@@ -1,15 +1,54 @@
-# Alerts go to the same Telegram bot and chat as the CI/CD messages (Backend/.github/scripts/notify.sh).
-# Bot token: put the same token in ./telegram_token (gitignored), then `docker compose restart alertmanager`.
+# Alertmanager, SRE style. Everything goes to the same Telegram bot and chat as the CI/CD messages.
+#
+# Severity decides how loud an alert is and how often it repeats:
+#   critical  user-visible or data at risk: sound, repeat every 1h, always delivered
+#   warning   needs a look, not a wake-up: silent, repeat every 12h, held back at night (23:00-07:00 Tashkent)
+#   Watchdog  always firing on purpose: proves Prometheus -> Alertmanager works; dropped here (point it at a
+#             dead-man's-switch service later: if it stops arriving, the alerting pipeline is down)
+# Bot token: ./telegram_token (gitignored), then `docker compose restart alertmanager`.
 # Topic: set message_thread_id when the CI/CD messages go to a forum topic (TELEGRAM_TOPIC_ID).
+# Check before deploying: amtool check-config + amtool config routes test (run by .github/workflows/ci.yml).
+
+global:
+  resolve_timeout: 5m
+
 route:
-  receiver: telegram
-  group_by: [alertname]
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 4h
+  receiver: telegram-warning
+  group_by: [alertname, job]
+  group_wait: 30s       # collect related alerts before the first message
+  group_interval: 5m    # new alerts of an open group
+  repeat_interval: 12h
+  routes:
+    - matchers: [alertname = "Watchdog"]
+      receiver: "null"
+      repeat_interval: 1h
+    - matchers: [severity = "critical"]
+      receiver: telegram-critical
+      group_wait: 10s
+      repeat_interval: 1h
+    - matchers: [severity = "warning"]
+      receiver: telegram-warning
+      repeat_interval: 12h
+      mute_time_intervals: [night]
+
+# A critical alert makes the warning of the same alert (and a dead target the alerts of its own instance) redundant.
+inhibit_rules:
+  - source_matchers: [severity = "critical"]
+    target_matchers: [severity = "warning"]
+    equal: [alertname, instance]
+  - source_matchers: [alertname = "TargetDown"]
+    target_matchers: [severity =~ "warning|critical"]
+    equal: [instance]
+
+time_intervals:
+  - name: night
+    time_intervals:
+      - times: [{start_time: "18:00", end_time: "24:00"}, {start_time: "00:00", end_time: "02:00"}] # UTC = 23:00-07:00 Tashkent
+
 receivers:
-  - name: telegram
-    telegram_configs:
+  - name: "null"
+  - name: telegram-critical
+    telegram_configs: &telegram
       - bot_token_file: /etc/alertmanager/telegram_token
         chat_id: 5032018108 # TELEGRAM_CHAT_ID of the CI/CD bot
         # message_thread_id: 0
@@ -17,10 +56,28 @@ receivers:
         parse_mode: HTML
         disable_notifications: false
         message: |-
-          {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}🔥 <b>Alert firing</b>{{ else }}⚠️ <b>Alert firing</b>{{ end }}{{ else }}✅ <b>Resolved</b>{{ end }}
+          {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}🔥 <b>Alert firing</b>{{ else }}⚠️ <b>Alert firing</b>{{ end }}{{ else }}✅ <b>Resolved</b>{{ end }}{{ if gt (len .Alerts) 1 }} · {{ len .Alerts }} alerts{{ end }}
           {{ range .Alerts }}
           🔔 <b>{{ .Labels.alertname }}</b>{{ with .Labels.severity }} · <code>{{ . }}</code>{{ end }}{{ with .Labels.instance }}
           🖥 <code>{{ . }}</code>{{ end }}
           💬 <i>{{ .Annotations.summary }}</i>{{ with .Annotations.description }}
-          📝 {{ . }}{{ end }}
+          📝 {{ . }}{{ end }}{{ with .Annotations.runbook_url }}
+          📖 <a href="{{ . }}">Runbook</a>{{ end }}
+          {{ end }}
+  - name: telegram-warning
+    telegram_configs:
+      - bot_token_file: /etc/alertmanager/telegram_token
+        chat_id: 5032018108
+        # message_thread_id: 0
+        send_resolved: true
+        parse_mode: HTML
+        disable_notifications: true
+        message: |-
+          {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}🔥 <b>Alert firing</b>{{ else }}⚠️ <b>Alert firing</b>{{ end }}{{ else }}✅ <b>Resolved</b>{{ end }}{{ if gt (len .Alerts) 1 }} · {{ len .Alerts }} alerts{{ end }}
+          {{ range .Alerts }}
+          🔔 <b>{{ .Labels.alertname }}</b>{{ with .Labels.severity }} · <code>{{ . }}</code>{{ end }}{{ with .Labels.instance }}
+          🖥 <code>{{ . }}</code>{{ end }}
+          💬 <i>{{ .Annotations.summary }}</i>{{ with .Annotations.description }}
+          📝 {{ . }}{{ end }}{{ with .Annotations.runbook_url }}
+          📖 <a href="{{ . }}">Runbook</a>{{ end }}
           {{ end }}

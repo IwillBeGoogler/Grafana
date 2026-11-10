@@ -72,3 +72,12 @@ groups:
           severity: warning
         annotations:
           summary: "CPU above 90% for 15m"
+  - name: meta
+    rules:
+      # Always firing: proves Prometheus evaluates rules and reaches Alertmanager (routed to "null" there).
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "Alerting pipeline heartbeat"

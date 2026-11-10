@@ -47,16 +47,12 @@ jobs:
             "$PROM_IMAGE" check config /etc/prometheus/prometheus.yml
 
   alertmanager:
-    name: Alertmanager config
+    name: Alertmanager config and routing
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7.0.1
-      - run: |
-          touch telegram_token
-          docker run --rm --entrypoint amtool \
-            -v "$PWD/alertmanager/alertmanager.yml:/a.yml:ro" -v "$PWD/telegram_token:/etc/alertmanager/telegram_token:ro" \
-            "$AM_IMAGE" check-config /a.yml
+      - run: bash .github/scripts/check-alertmanager.sh
 
   tracing:
     name: OTel collector and Jaeger config
