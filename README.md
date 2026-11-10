@@ -1,6 +1,6 @@
 # IWillBeGoogler monitoring
 
-Prometheus + Grafana + Alertmanager + node/postgres/redis exporters. Joins the app network (`iblog_default`), ~300M RAM total.
+Prometheus + Grafana + Alertmanager + node/postgres/redis exporters. Joins the app network (`iwillbegoogler_default`), ~300M RAM total.
 
 ```bash
 cp .env.example .env                       # set GRAFANA_ADMIN_PASSWORD, POSTGRES_PASSWORD, REDIS_PASSWORD
@@ -25,7 +25,7 @@ docker compose restart alertmanager
 
 ## Alerts
 
-- `iblog-diagrams`: Yjs writes/compaction, diagram API 5xx, webhook failures.
+- `iwillbegoogler-diagrams`: Yjs writes/compaction, diagram API 5xx, webhook failures.
 - `infra`: target down, host memory/disk/CPU.
 
 Config files are bind-mounted: after editing, run `docker compose restart <service>`.

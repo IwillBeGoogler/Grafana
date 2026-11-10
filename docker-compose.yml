@@ -1,6 +1,6 @@
-# Lean monitoring stack for IWillBeGoogler. Joins the app network (iblog_default) and scrapes it.
+# Lean monitoring stack for IWillBeGoogler. Joins the app network (iwillbegoogler_default) and scrapes it.
 # Memory budget: ~300M total.
-name: iblog-monitoring
+name: iwillbegoogler-monitoring
 
 x-common: &common
   restart: unless-stopped
@@ -102,7 +102,7 @@ services:
 networks:
   app:
     external: true
-    name: ${APP_NETWORK:-iblog_default}
+    name: ${APP_NETWORK:-iwillbegoogler_default}
 
 volumes:
   prometheusdata:
