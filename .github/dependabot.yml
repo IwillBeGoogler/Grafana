@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Image tags in docker-compose.yml (prometheus, grafana, loki, tempo, jaeger, otel-collector, exporters).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      images:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
