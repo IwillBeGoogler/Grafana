@@ -75,6 +75,9 @@ jobs:
   notify:
     needs: [compose, prometheus, alertmanager, tracing, grafana]
     if: always()
+    permissions:
+      contents: read
+      actions: read # _notify reads job results and logs
     uses: ./.github/workflows/_notify.yml
     with:
       environment: ${{ github.base_ref == 'main' && 'production' || 'dev' }}
