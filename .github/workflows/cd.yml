@@ -1,0 +1,56 @@
+name: CD
+
+# main -> production: CI (config validation) -> deploy the monitoring stack on the server with plain docker run
+# (self-hosted runner, label iwillbegoogler-prod, deploy user; .github/scripts/deploy-docker.sh) -> Telegram message.
+# Needs in the `production` environment: secret TELEGRAM_BOT_TOKEN (alerts), vars TELEGRAM_CHAT_ID / TELEGRAM_TOPIC_ID (messages).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never cancel a rollout mid-way.
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    permissions:
+      contents: read
+      actions: read # the called workflow has a notify job
+    uses: ./.github/workflows/ci.yml
+    with:
+      notify: false
+
+  deploy:
+    needs: ci
+    runs-on: [iwillbegoogler-prod] # runner has no `self-hosted` label (registered with --no-default-labels)
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Deploy monitoring stack
+        env:
+          SRC: ${{ github.workspace }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: bash .github/scripts/deploy-docker.sh
+
+  notify:
+    needs: [ci, deploy]
+    if: always()
+    permissions:
+      contents: read
+      actions: read # _notify reads job results and logs
+    uses: ./.github/workflows/_notify.yml
+    with:
+      environment: production
+      mode: cd
+      results: ${{ toJSON(needs) }}
+    secrets:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
