@@ -1,0 +1,32 @@
+# Jaeger v2 all-in-one: OTLP in (4317 gRPC, 4318 HTTP), UI/API on 16686, traces kept in memory (the last 5000 only,
+# lost on restart). Tempo stays the long-term trace store; Jaeger is the quick trace search UI.
+service:
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+  telemetry:
+    logs: { level: warn }
+
+extensions:
+  jaeger_query:
+    storage: { traces: memstore }
+  jaeger_storage:
+    backends:
+      memstore:
+        memory: { max_traces: 5000 }
+
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 0.0.0.0:4317 }
+      http: { endpoint: 0.0.0.0:4318 }
+
+processors:
+  batch: {}
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: memstore

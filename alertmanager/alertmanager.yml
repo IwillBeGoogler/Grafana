@@ -1,6 +1,25 @@
-# No receiver configured yet: alerts visible at http://localhost:9093 only.
-# For Telegram: cp alertmanager.yml.example alertmanager.yml, set chat_id, put token in ../telegram_token.
+# Alerts go to the same Telegram bot and chat as the CI/CD messages (Backend/.github/scripts/notify.sh).
+# Bot token: put the same token in ./telegram_token (gitignored), then `docker compose restart alertmanager`.
+# Topic: set message_thread_id when the CI/CD messages go to a forum topic (TELEGRAM_TOPIC_ID).
 route:
-  receiver: none
+  receiver: telegram
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
 receivers:
-  - name: none
+  - name: telegram
+    telegram_configs:
+      - bot_token_file: /etc/alertmanager/telegram_token
+        chat_id: 5032018108 # TELEGRAM_CHAT_ID of the CI/CD bot
+        # message_thread_id: 0
+        send_resolved: true
+        parse_mode: HTML
+        disable_notifications: false
+        message: |-
+          {{ if eq .Status "firing" }}🔴 <b>Alert firing</b>{{ else }}✅ <b>Resolved</b>{{ end }}{{ with .CommonLabels.severity }} · {{ . }}{{ end }}
+          {{ range .Alerts }}
+          <b>{{ .Labels.alertname }}</b>{{ with .Labels.instance }} · <code>{{ . }}</code>{{ end }}
+          {{ .Annotations.summary }}{{ with .Annotations.description }}
+          {{ . }}{{ end }}
+          {{ end }}

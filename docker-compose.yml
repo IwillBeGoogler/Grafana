@@ -1,5 +1,5 @@
 # Lean monitoring stack for IWillBeGoogler. Joins the app network (iwillbegoogler_default) and scrapes it.
-# Memory budget: ~300M total.
+# Memory budget: ~660M total.
 name: iwillbegoogler-monitoring
 
 x-common: &common
@@ -49,7 +49,7 @@ services:
       - grafanadata:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on: [prometheus]
+    depends_on: [prometheus, tempo, loki, jaeger]
     deploy: { resources: { limits: { memory: 112M, cpus: "0.5" } } }
 
   alertmanager:
@@ -65,6 +65,50 @@ services:
       - ./telegram_token:/etc/alertmanager/telegram_token:ro
       - alertmanagerdata:/alertmanager
     deploy: { resources: { limits: { memory: 32M, cpus: "0.1" } } }
+
+  otel-collector:
+    <<: *common
+    image: otel/opentelemetry-collector-contrib:0.131.0
+    command: [--config=/etc/otelcol/config.yml]
+    environment:
+      GOMEMLIMIT: 56MiB
+    volumes:
+      - ./otel/config.yml:/etc/otelcol/config.yml:ro
+    depends_on: [tempo, loki, jaeger]
+    deploy: { resources: { limits: { memory: 64M, cpus: "0.3" } } }
+
+  jaeger:
+    <<: *common
+    image: jaegertracing/jaeger:2.9.0
+    command: [--config=/etc/jaeger/config.yml]
+    environment:
+      GOMEMLIMIT: 90MiB
+    ports: ["127.0.0.1:${JAEGER_PORT:-16686}:16686"]
+    volumes:
+      - ./jaeger/config.yml:/etc/jaeger/config.yml:ro
+    deploy: { resources: { limits: { memory: 112M, cpus: "0.3" } } }
+
+  tempo:
+    <<: *common
+    image: grafana/tempo:2.8.1
+    command: [-config.file=/etc/tempo/tempo.yml]
+    environment:
+      GOMEMLIMIT: 90MiB
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempodata:/var/tempo
+    deploy: { resources: { limits: { memory: 112M, cpus: "0.3" } } }
+
+  loki:
+    <<: *common
+    image: grafana/loki:3.5.3
+    command: [-config.file=/etc/loki/loki.yml]
+    environment:
+      GOMEMLIMIT: 90MiB
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - lokidata:/loki
+    deploy: { resources: { limits: { memory: 112M, cpus: "0.3" } } }
 
   node-exporter:
     <<: *common
@@ -108,3 +152,5 @@ volumes:
   prometheusdata:
   grafanadata:
   alertmanagerdata:
+  tempodata:
+  lokidata:
