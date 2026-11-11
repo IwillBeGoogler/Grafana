@@ -12,7 +12,7 @@ x-common: &common
 services:
   prometheus:
     <<: *common
-    image: prom/prometheus:v3.5.0
+    image: prom/prometheus:v3.16.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=2d
@@ -31,7 +31,7 @@ services:
 
   grafana:
     <<: *common
-    image: grafana/grafana:12.1.0
+    image: grafana/grafana:13.3.0
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env (cp .env.example .env)}
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -56,7 +56,7 @@ services:
 
   alertmanager:
     <<: *common
-    image: prom/alertmanager:v0.28.1
+    image: prom/alertmanager:v0.34.2
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
@@ -71,7 +71,7 @@ services:
 
   otel-collector:
     <<: *common
-    image: otel/opentelemetry-collector-contrib:0.131.0
+    image: otel/opentelemetry-collector-contrib:0.165.0
     command: [--config=/etc/otelcol/config.yml]
     environment:
       GOMEMLIMIT: 56MiB
@@ -82,7 +82,7 @@ services:
 
   jaeger:
     <<: *common
-    image: jaegertracing/jaeger:2.9.0
+    image: jaegertracing/jaeger:2.23.0
     command: [--config=/etc/jaeger/config.yml]
     environment:
       GOMEMLIMIT: 90MiB
@@ -93,7 +93,7 @@ services:
 
   loki:
     <<: *common
-    image: grafana/loki:3.5.3
+    image: grafana/loki:3.7.9
     command: [-config.file=/etc/loki/loki.yml]
     environment:
       GOMEMLIMIT: 90MiB
@@ -104,7 +104,7 @@ services:
 
   node-exporter:
     <<: *common
-    image: prom/node-exporter:v1.9.1
+    image: prom/node-exporter:v1.12.1
     command:
       - --path.rootfs=/host
       - --collector.disable-defaults
@@ -121,7 +121,7 @@ services:
 
   postgres-exporter:
     <<: *common
-    image: prometheuscommunity/postgres-exporter:v0.17.1
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     environment:
       DATA_SOURCE_NAME: postgres://blog:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (cp .env.example .env)}@postgres:5432/blog?sslmode=disable
     command: [--no-collector.wal, --no-collector.stat_bgwriter]
@@ -129,7 +129,7 @@ services:
 
   redis-exporter:
     <<: *common
-    image: oliver006/redis_exporter:v1.74.0-alpine
+    image: oliver006/redis_exporter:v1.97.0-alpine
     environment:
       REDIS_ADDR: redis://redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
