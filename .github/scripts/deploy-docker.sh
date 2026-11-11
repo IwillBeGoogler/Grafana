@@ -11,7 +11,8 @@
 #
 # Every service is replaced one by one: the old container is kept stopped until the new one runs, otherwise it is
 # restored. Data lives in docker volumes (iwillbegoogler-monitoring-*), so a rollout never touches metrics, traces or logs.
-# All ports are bound to 127.0.0.1 only (ssh tunnel to reach the UIs): Grafana 3200, Prometheus 9091, Alertmanager 9093, Jaeger 16686.
+# All ports are bound to 127.0.0.1 only. Grafana is public at https://grafana.iwillbegoogler.uz (host nginx + Let's Encrypt, login
+# required); the other UIs need an ssh tunnel: Grafana 3200, Prometheus 9091, Alertmanager 9093, Jaeger 16686.
 set -euo pipefail
 : "${SRC:?}" "${TELEGRAM_BOT_TOKEN:?}"
 DEPLOY_DIR=${DEPLOY_DIR:-/opt/monitoring}
@@ -123,6 +124,8 @@ run redis-exporter "$REDISX" 16m 0.1 -e "REDIS_ADDR=redis://${REDIS_HOST}:6379" 
 
 run grafana "$GRAFANA" 160m 0.5 -p 127.0.0.1:3200:3000 \
 	-e "GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?}" -e GF_USERS_ALLOW_SIGN_UP=false \
+	-e GF_SERVER_DOMAIN=grafana.iwillbegoogler.uz -e GF_SERVER_ROOT_URL=https://grafana.iwillbegoogler.uz \
+	-e GF_SECURITY_COOKIE_SECURE=true -e GF_SECURITY_COOKIE_SAMESITE=lax -e GF_AUTH_ANONYMOUS_ENABLED=false \
 	-e GF_ANALYTICS_REPORTING_ENABLED=false -e GF_ANALYTICS_CHECK_FOR_UPDATES=false \
 	-e GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false -e GF_PLUGINS_PREINSTALL_DISABLED=true \
 	-e GF_NEWS_NEWS_FEED_ENABLED=false -e GF_UNIFIED_ALERTING_ENABLED=true -e GF_LOG_LEVEL=warn \
