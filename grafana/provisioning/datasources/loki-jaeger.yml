@@ -1,16 +1,5 @@
 apiVersion: 1
 datasources:
-  - name: Tempo
-    uid: tempo
-    type: tempo
-    access: proxy
-    url: http://tempo:3200
-    editable: false
-    jsonData:
-      tracesToLogsV2:
-        datasourceUid: loki
-        filterByTraceID: true
-      serviceMap: { datasourceUid: prometheus }
   - name: Loki
     uid: loki
     type: loki
@@ -22,13 +11,8 @@ datasources:
         - name: trace_id
           matcherRegex: '"?trace_?[iI]d"?[=:]\s*"?(\w+)'
           url: '$${__value.raw}'
-          datasourceUid: tempo
-  - name: Jaeger
-    uid: jaeger
-    type: jaeger
-    access: proxy
-    url: http://jaeger:16686
-    editable: false
+          datasourceUid: jaeger
+  # Jaeger runs on the host under systemd; the Grafana container resolves `jaeger` to the docker gateway (--add-host)
   - name: Jaeger
     uid: jaeger
     type: jaeger

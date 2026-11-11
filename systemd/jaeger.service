@@ -1,0 +1,26 @@
+[Unit]
+Description=Jaeger v2 all-in-one (IWillBeGoogler traces, in-memory)
+# 172.30.0.1 is the docker bridge `iwillbegoogler`, created by dockerd
+Wants=docker.service
+After=docker.service network-online.target
+
+[Service]
+User=jaeger
+Group=jaeger
+ExecStart=/usr/local/bin/jaeger --config=/opt/monitoring/jaeger/config.yaml
+Restart=on-failure
+RestartSec=5
+Environment=GOMEMLIMIT=90MiB
+MemoryMax=112M
+LimitNOFILE=65536
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

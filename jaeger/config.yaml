@@ -1,5 +1,6 @@
-# Jaeger v2 all-in-one: OTLP in (4317 gRPC, 4318 HTTP), UI/API on 16686, traces kept in memory (the last 5000 only,
-# lost on restart). Tempo stays the long-term trace store; Jaeger is the quick trace search UI.
+# Jaeger v2 all-in-one under systemd on the host (systemd/jaeger.service). Everything listens on the docker bridge gateway
+# 172.30.0.1 only (containers reach it as `jaeger`, via --add-host jaeger:172.30.0.1; host nginx proxies the UI). OTLP in
+# (4317 gRPC, 4318 HTTP), UI/API on 16686, traces kept in memory (the last 5000 only, lost on restart).
 service:
   extensions: [jaeger_storage, jaeger_query]
   pipelines:
@@ -13,6 +14,8 @@ service:
 extensions:
   jaeger_query:
     storage: { traces: memstore }
+    http: { endpoint: 172.30.0.1:16686 }
+    grpc: { endpoint: 172.30.0.1:16685 }
   jaeger_storage:
     backends:
       memstore:
@@ -21,8 +24,8 @@ extensions:
 receivers:
   otlp:
     protocols:
-      grpc: { endpoint: 0.0.0.0:4317 }
-      http: { endpoint: 0.0.0.0:4318 }
+      grpc: { endpoint: 172.30.0.1:4317 }
+      http: { endpoint: 172.30.0.1:4318 }
 
 processors:
   batch: {}

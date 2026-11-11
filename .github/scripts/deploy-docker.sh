@@ -12,13 +12,15 @@
 # Every service is replaced one by one: the old container is kept stopped until the new one runs, otherwise it is
 # restored. Data lives in docker volumes (iwillbegoogler-monitoring-*), so a rollout never touches metrics, traces or logs.
 # All ports are bound to 127.0.0.1 only. Grafana is public at https://grafana.iwillbegoogler.uz (host nginx + Let's Encrypt, login
-# required); the other UIs need an ssh tunnel: Grafana 3200, Prometheus 9091, Alertmanager 9093, Jaeger 16686.
+# required); the other UIs need an ssh tunnel: Grafana 3200, Prometheus 9091, Alertmanager 9093; Jaeger (host, systemd) is public at
+# https://jaeger.iwillbegoogler.uz behind nginx basic auth.
 set -euo pipefail
 : "${SRC:?}" "${TELEGRAM_BOT_TOKEN:?}"
 DEPLOY_DIR=${DEPLOY_DIR:-/opt/monitoring}
 NETWORK=${DOCKER_NETWORK:-iwillbegoogler}
 PG_HOST=${PG_HOST:-172.30.0.1}      # postgres and redis run on the host, reachable on the gateway of the docker network
 REDIS_HOST=${REDIS_HOST:-172.30.0.1}
+GW=${GW:-172.30.0.1}                 # docker gateway on the host: Jaeger listens here
 umask 022
 
 # --- config files and secrets ---------------------------------------------------
@@ -29,7 +31,7 @@ set +a
 : "${GRAFANA_PG_PASSWORD:?}" "${GRAFANA_REDIS_PASSWORD:?}" "${EMQX_API_SECRET:?}"
 
 install -d "$DEPLOY_DIR" "$DEPLOY_DIR/secrets"
-for d in prometheus alertmanager otel jaeger loki tempo grafana; do
+for d in prometheus alertmanager otel jaeger loki grafana; do
 	rsync -a --delete "$SRC/$d/" "$DEPLOY_DIR/$d/"
 done
 rm -f "$DEPLOY_DIR/alertmanager/alertmanager.yml.example"
@@ -71,30 +73,23 @@ vol() { echo "iwillbegoogler-monitoring-$1"; }
 PROM=prom/prometheus:v3.5.0
 AM=prom/alertmanager:v0.28.1
 OTEL=otel/opentelemetry-collector-contrib:0.131.0
-TEMPO=grafana/tempo:2.8.1
 LOKI=grafana/loki:3.5.3
-JAEGER=jaegertracing/jaeger:2.23.0
 GRAFANA=grafana/grafana:12.1.0
 NODE=prom/node-exporter:v1.9.1
 PGX=prometheuscommunity/postgres-exporter:v0.17.1
 REDISX=oliver006/redis_exporter:v1.74.0-alpine
 
-for i in $PROM $AM $OTEL $TEMPO $LOKI $JAEGER $GRAFANA $NODE $PGX $REDISX; do docker pull -q "$i" >/dev/null; done
+for i in $PROM $AM $OTEL $LOKI $GRAFANA $NODE $PGX $REDISX; do docker pull -q "$i" >/dev/null; done
 
 # datastores first, then the collector that feeds them, then Prometheus/Alertmanager, exporters, Grafana
 run loki "$LOKI" 112m 0.3 -e GOMEMLIMIT=90MiB \
 	-v "$DEPLOY_DIR/loki/loki.yml:/etc/loki/loki.yml:ro" -v "$(vol loki):/loki" \
 	"$LOKI" -config.file=/etc/loki/loki.yml
 
-run tempo "$TEMPO" 112m 0.3 -e GOMEMLIMIT=90MiB \
-	-v "$DEPLOY_DIR/tempo/tempo.yml:/etc/tempo/tempo.yml:ro" -v "$(vol tempo):/var/tempo" \
-	"$TEMPO" -config.file=/etc/tempo/tempo.yml
+# Jaeger is not a container: it runs on the host under systemd (systemd/jaeger.service, config $DEPLOY_DIR/jaeger/config.yaml,
+# restart it after a config change: sudo systemctl restart jaeger). Containers reach it as `jaeger` via --add-host.
 
-run jaeger "$JAEGER" 112m 0.3 -e GOMEMLIMIT=90MiB -p 127.0.0.1:16686:16686 \
-	-v "$DEPLOY_DIR/jaeger/config.yaml:/etc/jaeger/config.yaml:ro" \
-	"$JAEGER" --config=/etc/jaeger/config.yaml
-
-run otel-collector "$OTEL" 64m 0.3 -e GOMEMLIMIT=56MiB \
+run otel-collector "$OTEL" 64m 0.3 -e GOMEMLIMIT=56MiB --add-host "jaeger:$GW" \
 	-v "$DEPLOY_DIR/otel/config.yml:/etc/otelcol/config.yml:ro" \
 	"$OTEL" --config=/etc/otelcol/config.yml
 
@@ -122,7 +117,7 @@ run postgres-exporter "$PGX" 24m 0.1 \
 run redis-exporter "$REDISX" 16m 0.1 -e "REDIS_ADDR=redis://${REDIS_HOST}:6379" -e REDIS_USER=grafana -e "REDIS_PASSWORD=${GRAFANA_REDIS_PASSWORD}" \
 	"$REDISX"
 
-run grafana "$GRAFANA" 160m 0.5 -p 127.0.0.1:3200:3000 \
+run grafana "$GRAFANA" 160m 0.5 -p 127.0.0.1:3200:3000 --add-host "jaeger:$GW" \
 	-e "GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?}" -e GF_USERS_ALLOW_SIGN_UP=false \
 	-e GF_SERVER_DOMAIN=grafana.iwillbegoogler.uz -e GF_SERVER_ROOT_URL=https://grafana.iwillbegoogler.uz \
 	-e GF_SECURITY_COOKIE_SECURE=true -e GF_SECURITY_COOKIE_SAMESITE=lax -e GF_AUTH_ANONYMOUS_ENABLED=false \

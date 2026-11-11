@@ -1,6 +1,6 @@
 # IWillBeGoogler monitoring
 
-Prometheus + Grafana + Alertmanager + node/postgres/redis exporters + OpenTelemetry Collector, Tempo + Jaeger (traces), Loki (logs). Joins the app network (`iwillbegoogler_default`), ~660M RAM total.
+Prometheus + Grafana + Alertmanager + node/postgres/redis exporters + OpenTelemetry Collector, Jaeger (traces), Loki (logs). Joins the app network (`iwillbegoogler_default`), ~660M RAM total.
 
 ```bash
 cp .env.example .env                       # set GRAFANA_ADMIN_PASSWORD, POSTGRES_PASSWORD, REDIS_PASSWORD
@@ -25,7 +25,7 @@ Backend already exports traces, metrics and logs over OTLP/HTTP. Point it at the
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 ```
 
-Collector routes: traces to Tempo and Jaeger (Jaeger keeps the last 20k traces in memory), logs to Loki, metrics to `otel-collector:8889` (scraped by Prometheus, job `otel`). In Grafana: Explore > Tempo / Jaeger / Loki; trace and log views link by trace id.
+Collector routes: traces to Jaeger (kept in memory, lost on restart), logs to Loki, metrics to `otel-collector:8889` (scraped by Prometheus, job `otel`). In Grafana: Explore > Jaeger / Loki; trace and log views link by trace id.
 
 ## Telegram alerts
 

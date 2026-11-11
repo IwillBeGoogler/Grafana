@@ -33,7 +33,7 @@ services:
     <<: *common
     image: grafana/grafana:12.1.0
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env (cp .env.example .env)}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
@@ -51,7 +51,7 @@ services:
       - grafanadata:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on: [prometheus, tempo, loki, jaeger]
+    depends_on: [prometheus, loki, jaeger]
     deploy: { resources: { limits: { memory: 160M, cpus: "0.5" } } }
 
   alertmanager:
@@ -77,7 +77,7 @@ services:
       GOMEMLIMIT: 56MiB
     volumes:
       - ./otel/config.yml:/etc/otelcol/config.yml:ro
-    depends_on: [tempo, loki, jaeger]
+    depends_on: [loki, jaeger]
     deploy: { resources: { limits: { memory: 64M, cpus: "0.3" } } }
 
   jaeger:
@@ -89,17 +89,6 @@ services:
     ports: ["127.0.0.1:${JAEGER_PORT:-16686}:16686"]
     volumes:
       - ./jaeger/config.yml:/etc/jaeger/config.yml:ro
-    deploy: { resources: { limits: { memory: 112M, cpus: "0.3" } } }
-
-  tempo:
-    <<: *common
-    image: grafana/tempo:2.8.1
-    command: [-config.file=/etc/tempo/tempo.yml]
-    environment:
-      GOMEMLIMIT: 90MiB
-    volumes:
-      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
-      - tempodata:/var/tempo
     deploy: { resources: { limits: { memory: 112M, cpus: "0.3" } } }
 
   loki:
@@ -134,7 +123,7 @@ services:
     <<: *common
     image: prometheuscommunity/postgres-exporter:v0.17.1
     environment:
-      DATA_SOURCE_NAME: postgres://blog:${POSTGRES_PASSWORD:-blog}@postgres:5432/blog?sslmode=disable
+      DATA_SOURCE_NAME: postgres://blog:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (cp .env.example .env)}@postgres:5432/blog?sslmode=disable
     command: [--no-collector.wal, --no-collector.stat_bgwriter]
     deploy: { resources: { limits: { memory: 24M, cpus: "0.1" } } }
 
@@ -155,5 +144,4 @@ volumes:
   prometheusdata:
   grafanadata:
   alertmanagerdata:
-  tempodata:
   lokidata:
