@@ -1,25 +1,2 @@
+# Superseded by loki-tempo.yml (Jaeger was replaced by Tempo). Delete this file.
 apiVersion: 1
-datasources:
-  - name: Loki
-    uid: loki
-    type: loki
-    access: proxy
-    url: http://loki:3100
-    editable: false
-    jsonData:
-      derivedFields:
-        - name: trace_id
-          matcherRegex: '"?trace_?[iI]d"?[=:]\s*"?(\w+)'
-          url: '$${__value.raw}'
-          datasourceUid: jaeger
-  # Jaeger runs on the host under systemd; the Grafana container resolves `jaeger` to the docker gateway (--add-host)
-  - name: Jaeger
-    uid: jaeger
-    type: jaeger
-    access: proxy
-    url: http://jaeger:16686
-    editable: false
-    jsonData:
-      tracesToLogsV2:
-        datasourceUid: loki
-        filterByTraceID: true

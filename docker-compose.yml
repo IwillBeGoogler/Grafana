@@ -1,5 +1,5 @@
 # Lean monitoring stack for IWillBeGoogler. Joins the app network (iwillbegoogler_default) and scrapes it.
-# Memory budget: ~660M total.
+# Memory budget: ~740M total.
 name: iwillbegoogler-monitoring
 
 x-common: &common
@@ -51,7 +51,7 @@ services:
       - grafanadata:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on: [prometheus, loki, jaeger]
+    depends_on: [prometheus, loki, tempo]
     deploy: { resources: { limits: { memory: 160M, cpus: "0.5" } } }
 
   alertmanager:
@@ -77,19 +77,20 @@ services:
       GOMEMLIMIT: 56MiB
     volumes:
       - ./otel/config.yml:/etc/otelcol/config.yml:ro
-    depends_on: [loki, jaeger]
+    depends_on: [loki, tempo]
     deploy: { resources: { limits: { memory: 64M, cpus: "0.3" } } }
 
-  jaeger:
+  tempo:
     <<: *common
-    image: jaegertracing/jaeger:2.9.0
-    command: [--config=/etc/jaeger/config.yml]
+    image: grafana/tempo:2.8.2
+    command: [-config.file=/etc/tempo/tempo.yml]
     environment:
-      GOMEMLIMIT: 90MiB
-    ports: ["127.0.0.1:${JAEGER_PORT:-16686}:16686"]
+      GOMEMLIMIT: 150MiB
+    ports: ["127.0.0.1:${TEMPO_PORT:-3201}:3200"]
     volumes:
-      - ./jaeger/config.yml:/etc/jaeger/config.yml:ro
-    deploy: { resources: { limits: { memory: 112M, cpus: "0.3" } } }
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempodata:/var/tempo
+    deploy: { resources: { limits: { memory: 192M, cpus: "0.5" } } }
 
   loki:
     <<: *common
@@ -145,3 +146,4 @@ volumes:
   grafanadata:
   alertmanagerdata:
   lokidata:
+  tempodata:

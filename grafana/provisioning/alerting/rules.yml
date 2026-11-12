@@ -16,7 +16,7 @@ groups:
         labels: { severity: critical }
         annotations:
           summary: "API 5xx above 3% for 10 minutes"
-          description: "Share of 5xx responses over all API routes. Check the API logs and Jaeger traces."
+          description: "Share of 5xx responses over all API routes. Check the API logs and Tempo traces."
         data:
           - refId: A
             relativeTimeRange: { from: 600, to: 0 }

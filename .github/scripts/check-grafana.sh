@@ -25,6 +25,9 @@ check() { # description, jq filter, expected substring
   if [[ $got == *"$4"* ]]; then echo "ok   $1: $got"; else echo "FAIL $1: expected '$4', got '$got'"; fail=1; fi
 }
 check "datasources"   /api/datasources                         '.[].name'  "Prometheus"
+check "tempo"         /api/datasources/uid/tempo               '.type + " " + .url'  "tempo http://tempo:3200"
+check "loki to tempo" /api/datasources/uid/loki                '.jsonData.derivedFields[0].datasourceUid'  "tempo"
+if api /api/datasources | jq -e '[.[].type] | index("jaeger")' >/dev/null; then echo "FAIL a Jaeger datasource is still provisioned"; fail=1; fi
 check "contact point" /api/v1/provisioning/contact-points      '.[].name'  "telegram"
 check "policy"        /api/v1/provisioning/policies            '.receiver' "telegram"
 check "alert rules"   /api/v1/provisioning/alert-rules         '.[].title' "ApiErrorRate"

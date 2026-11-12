@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Image tags in docker-compose.yml (prometheus, grafana, loki, jaeger, otel-collector, exporters).
+  # Image tags in docker-compose.yml (prometheus, grafana, loki, tempo, otel-collector, exporters).
   - package-ecosystem: docker-compose
     directory: /
     schedule:

@@ -7,8 +7,8 @@ processors:
   memory_limiter: { check_interval: 5s, limit_mib: 48, spike_limit_mib: 12 }
   batch: { timeout: 5s }
 exporters:
-  otlp/jaeger:
-    endpoint: jaeger:4317
+  otlp/tempo:
+    endpoint: tempo:4317
     tls: { insecure: true }
   otlphttp/loki:
     endpoint: http://loki:3100/otlp
@@ -17,7 +17,7 @@ exporters:
     resource_to_telemetry_conversion: { enabled: true }
 service:
   pipelines:
-    traces:  { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlp/jaeger] }
+    traces:  { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlp/tempo] }
     logs:    { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
     metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [prometheus] }
   telemetry:

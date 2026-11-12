@@ -1,7 +1,7 @@
 name: CI
 
 # Validates every config of the monitoring stack before it can be deployed: compose file, Prometheus config and rules,
-# Alertmanager, OTel collector, Jaeger, and a Grafana start with the provisioning (datasources, alerting).
+# Alertmanager, OTel collector, Tempo (an end-to-end trace), and a Grafana start with the provisioning (datasources, alerting).
 on:
   push:
     branches: [main]
@@ -23,7 +23,6 @@ env:
   PROM_IMAGE: prom/prometheus:v3.5.0
   AM_IMAGE: prom/alertmanager:v0.28.1
   OTEL_IMAGE: otel/opentelemetry-collector-contrib:0.131.0
-  JAEGER_IMAGE: jaegertracing/jaeger:2.23.0
 
 jobs:
   compose:
@@ -58,14 +57,14 @@ jobs:
       - run: bash .github/scripts/check-alertmanager.sh
 
   tracing:
-    name: OTel collector and Jaeger config
+    name: OTel collector and Tempo (end to end)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v7.0.1
-      - run: |
-          docker run --rm -v "$PWD/otel/config.yml:/c.yml:ro" "$OTEL_IMAGE" validate --config /c.yml
-          docker run --rm -v "$PWD/jaeger/config.yaml:/c.yaml:ro" "$JAEGER_IMAGE" validate --config /c.yaml
+      - run: docker run --rm -v "$PWD/otel/config.yml:/c.yml:ro" "$OTEL_IMAGE" validate --config /c.yml
+      # starts both with the repo's configs, sends a span to the collector and reads it back from Tempo
+      - run: bash .github/scripts/check-tracing.sh
 
   grafana:
     name: Grafana provisioning
