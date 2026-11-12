@@ -88,7 +88,7 @@ run loki "$LOKI" 112m 0.3 -e GOMEMLIMIT=90MiB \
 
 # Tempo keeps traces on disk (volume iwillbegoogler-monitoring-tempo, 48h). The image runs as uid 10001: the volume takes
 # its ownership from the image's /var/tempo on first use.
-run tempo "$TEMPO" 192m 0.5 -e GOMEMLIMIT=150MiB -p 127.0.0.1:3201:3200 \
+run tempo "$TEMPO" 256m 0.5 -e GOMEMLIMIT=200MiB -p 127.0.0.1:3201:3200 \
 	-v "$DEPLOY_DIR/tempo/tempo.yml:/etc/tempo/tempo.yml:ro" -v "$(vol tempo):/var/tempo" \
 	"$TEMPO" -config.file=/etc/tempo/tempo.yml
 
@@ -101,7 +101,7 @@ run prometheus "$PROM" 112m 0.5 -e GOMAXPROCS=1 -e GOMEMLIMIT=90MiB -p 127.0.0.1
 	-v "$DEPLOY_DIR/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro" \
 	-v "$DEPLOY_DIR/secrets/emqx_secret:/etc/prometheus/emqx_secret:ro" -v "$(vol prometheus):/prometheus" \
 	"$PROM" --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.retention.time=2d \
-	--storage.tsdb.retention.size=300MB --web.enable-lifecycle
+	--storage.tsdb.retention.size=300MB --web.enable-lifecycle --web.enable-remote-write-receiver
 
 run alertmanager "$AM" 32m 0.1 -p 127.0.0.1:9093:9093 \
 	-v "$DEPLOY_DIR/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" \

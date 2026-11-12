@@ -26,6 +26,7 @@ check() { # description, jq filter, expected substring
 }
 check "datasources"   /api/datasources                         '.[].name'  "Prometheus"
 check "tempo"         /api/datasources/uid/tempo               '.type + " " + .url'  "tempo http://tempo:3200"
+check "service map"   /api/datasources/uid/tempo              '.jsonData.serviceMap.datasourceUid'  "prometheus"
 check "loki to tempo" /api/datasources/uid/loki                '.jsonData.derivedFields[0].datasourceUid'  "tempo"
 if api /api/datasources | jq -e '[.[].type] | index("jaeger")' >/dev/null; then echo "FAIL a Jaeger datasource is still provisioned"; fail=1; fi
 check "contact point" /api/v1/provisioning/contact-points      '.[].name'  "telegram"

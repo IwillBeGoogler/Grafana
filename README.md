@@ -1,6 +1,6 @@
 # IWillBeGoogler monitoring
 
-Prometheus + Grafana + Alertmanager + node/postgres/redis exporters + OpenTelemetry Collector, Tempo (traces), Loki (logs). Joins the app network (`iwillbegoogler_default`), ~740M RAM total.
+Prometheus + Grafana + Alertmanager + node/postgres/redis exporters + OpenTelemetry Collector, Tempo (traces), Loki (logs). Joins the app network (`iwillbegoogler_default`), ~800M RAM total.
 
 ```bash
 cp .env.example .env                       # set GRAFANA_ADMIN_PASSWORD, POSTGRES_PASSWORD, REDIS_PASSWORD
@@ -23,6 +23,8 @@ Backend already exports traces, metrics and logs over OTLP/HTTP. Point it at the
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 ```
+
+Tempo's metrics generator derives service-graph and span metrics from the traces and pushes them to Prometheus (`traces_service_graph_*`, `traces_spanmetrics_*`); Grafana > Explore > Tempo > Service Graph draws them.
 
 Collector routes: traces to Tempo (on disk, kept 48h, survive restarts), logs to Loki, metrics to `otel-collector:8889` (scraped by Prometheus, job `otel`). In Grafana: Explore > Tempo / Loki; trace and log views link by trace id.
 

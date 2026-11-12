@@ -1,0 +1,3 @@
+# Minimal Prometheus config for check-tracing.sh: it only needs to be a valid server that accepts remote write.
+global:
+  scrape_interval: 15s

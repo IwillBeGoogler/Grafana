@@ -1,5 +1,5 @@
 # Lean monitoring stack for IWillBeGoogler. Joins the app network (iwillbegoogler_default) and scrapes it.
-# Memory budget: ~740M total.
+# Memory budget: ~800M total.
 name: iwillbegoogler-monitoring
 
 x-common: &common
@@ -18,6 +18,7 @@ services:
       - --storage.tsdb.retention.time=2d
       - --storage.tsdb.retention.size=300MB
       - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver # Tempo's metrics generator pushes service-graph metrics
     environment:
       GOMAXPROCS: "1"
       GOMEMLIMIT: 90MiB
@@ -85,12 +86,13 @@ services:
     image: grafana/tempo:2.8.2
     command: [-config.file=/etc/tempo/tempo.yml]
     environment:
-      GOMEMLIMIT: 150MiB
+      GOMEMLIMIT: 200MiB
     ports: ["127.0.0.1:${TEMPO_PORT:-3201}:3200"]
     volumes:
       - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
       - tempodata:/var/tempo
-    deploy: { resources: { limits: { memory: 192M, cpus: "0.5" } } }
+    depends_on: [prometheus]
+    deploy: { resources: { limits: { memory: 256M, cpus: "0.5" } } }
 
   loki:
     <<: *common

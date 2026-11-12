@@ -23,4 +23,5 @@ datasources:
       tracesToLogsV2:
         datasourceUid: loki
         filterByTraceID: true
-      nodeGraph: { enabled: false }
+      nodeGraph: { enabled: true }
+      serviceMap: { datasourceUid: prometheus }
