@@ -12,6 +12,9 @@
 global:
   resolve_timeout: 5m
 
+templates:
+  - /etc/alertmanager/templates/*.tmpl
+
 route:
   receiver: telegram-warning
   group_by: [alertname, job]
@@ -55,15 +58,7 @@ receivers:
         send_resolved: true
         parse_mode: HTML
         disable_notifications: false
-        message: |-
-          {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}🔥 <b>Alert firing</b>{{ else }}⚠️ <b>Alert firing</b>{{ end }}{{ else }}✅ <b>Resolved</b>{{ end }}{{ if gt (len .Alerts) 1 }} · {{ len .Alerts }} alerts{{ end }}
-          {{ range .Alerts }}
-          🔔 <b>{{ .Labels.alertname }}</b>{{ with .Labels.severity }} · <code>{{ . }}</code>{{ end }}{{ with .Labels.instance }}
-          🖥 <code>{{ . }}</code>{{ end }}
-          💬 <i>{{ .Annotations.summary }}</i>{{ with .Annotations.description }}
-          📝 {{ . }}{{ end }}{{ with .Annotations.runbook_url }}
-          📖 <a href="{{ . }}">Runbook</a>{{ end }}
-          {{ end }}
+        message: '{{ template "telegram.message" . }}'
   - name: telegram-warning
     telegram_configs:
       - bot_token_file: /etc/alertmanager/telegram_token
@@ -72,12 +67,4 @@ receivers:
         send_resolved: true
         parse_mode: HTML
         disable_notifications: true
-        message: |-
-          {{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}🔥 <b>Alert firing</b>{{ else }}⚠️ <b>Alert firing</b>{{ end }}{{ else }}✅ <b>Resolved</b>{{ end }}{{ if gt (len .Alerts) 1 }} · {{ len .Alerts }} alerts{{ end }}
-          {{ range .Alerts }}
-          🔔 <b>{{ .Labels.alertname }}</b>{{ with .Labels.severity }} · <code>{{ . }}</code>{{ end }}{{ with .Labels.instance }}
-          🖥 <code>{{ . }}</code>{{ end }}
-          💬 <i>{{ .Annotations.summary }}</i>{{ with .Annotations.description }}
-          📝 {{ . }}{{ end }}{{ with .Annotations.runbook_url }}
-          📖 <a href="{{ . }}">Runbook</a>{{ end }}
-          {{ end }}
+        message: '{{ template "telegram.message" . }}'

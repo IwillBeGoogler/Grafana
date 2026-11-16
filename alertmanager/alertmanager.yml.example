@@ -1,4 +1,7 @@
 # Copy to alertmanager.yml and fill chat_id. Bot token goes in ./telegram_token (gitignored).
+templates:
+  - /etc/alertmanager/templates/*.tmpl
+
 route:
   receiver: telegram
   group_by: [alertname]

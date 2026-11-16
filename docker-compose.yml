@@ -66,6 +66,7 @@ services:
     ports: ["127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"]
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./alertmanager/templates:/etc/alertmanager/templates:ro
       - ./telegram_token:/etc/alertmanager/telegram_token:ro
       - alertmanagerdata:/alertmanager
     deploy: { resources: { limits: { memory: 32M, cpus: "0.1" } } }

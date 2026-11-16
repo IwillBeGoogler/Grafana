@@ -1,0 +1,54 @@
+{{/*
+  Telegram message for Alertmanager (parse_mode HTML). One block per alert, at most 5 (Telegram rejects > 4096 chars):
+
+    🟥 PROD · 🔴 P1 · FIRING            environment, priority (critical = P1, warning = P3), status
+    🧵 Summary in plain words           bold
+    🔔 AlertName · category             italic
+    📝 description                      only while firing
+    🖥️ instance · 📦 container · 👥 team
+    🕒 2026-11-16 12:00 UTC             start (and end when resolved)
+    📖 Runbook
+
+  Label and annotation text is HTML-escaped: a "<" in a value would break parse_mode HTML and fail the whole message.
+  Edit the environment below if this stack ever runs for another environment.
+*/}}
+{{ define "telegram.cut" }}{{ reReplaceAll "(?s)^(.{300}).+$" "$1…" . | html }}{{ end }}
+
+{{ define "telegram.priority" }}
+{{- if eq . "critical" }}🔴 <b>P1</b>{{ else if eq . "warning" }}🟡 <b>P3</b>{{ else if eq . "" }}ℹ️ <b>info</b>{{ else }}<b>{{ . | html }}</b>{{ end }}
+{{- end }}
+
+{{ define "telegram.icon" }}
+{{- if match "^Yjs" . }}🧵
+{{- else if match "^(TargetDown|Watchdog|Prometheus|Alert)" . }}🛡️
+{{- else if match "(Disk|Memory|Cpu|CPU|Load)" . }}🔧
+{{- else if match "(Http|5xx|Latency|Request)" . }}🌐
+{{- else }}🖥️{{ end }}
+{{- end }}
+
+{{ define "telegram.message" }}
+{{- range $i, $a := .Alerts }}{{ if lt $i 5 }}{{ with $a }}
+{{- if eq .Status "firing" }}🟥 <b>PROD</b> · {{ template "telegram.priority" .Labels.severity }} · <b>FIRING</b>
+{{- else }}🟥 <b>PROD</b> · ✅ <b>RESOLVED</b> · {{ template "telegram.priority" .Labels.severity }}{{ end }}
+{{ template "telegram.icon" .Labels.alertname }} <b>{{ if .Annotations.summary }}{{ template "telegram.cut" .Annotations.summary }}{{ else }}{{ .Labels.alertname | html }}{{ end }}</b>
+🔔 <i>{{ .Labels.alertname | html }}{{ with .Labels.category }} · {{ . | html }}{{ end }}</i>
+{{- if eq .Status "firing" }}{{ with .Annotations.description }}
+📝 <i>{{ template "telegram.cut" . }}</i>{{ end }}{{ end }}
+{{- $c := or .Labels.container .Labels.name }}
+{{- if or .Labels.instance $c .Labels.team }}
+{{ $s := "" }}{{ with .Labels.instance }}🖥️ <b><code>{{ . | html }}</code></b>{{ $s = " · " }}{{ end }}
+{{- with $c }}{{ $s }}📦 <b><code>{{ . | html }}</code></b>{{ $s = " · " }}{{ end }}
+{{- with .Labels.team }}{{ $s }}👥 <i>{{ . | html }}</i>{{ end }}
+{{- end }}
+{{- if eq .Status "firing" }}
+🕒 <i>{{ .StartsAt.Format "2006-01-02 15:04 MST" }}</i>
+{{- else }}
+🕒 <i>{{ .StartsAt.Format "2006-01-02 15:04" }} → {{ .EndsAt.Format "15:04 MST" }}</i>
+{{- end }}
+{{- with .Annotations.runbook_url }}
+📖 <a href="{{ . | html }}">Runbook</a>{{ end }}
+
+{{ end }}{{ end }}{{ end }}
+{{- if gt (len .Alerts) 5 }}<i>… showing 5 of {{ len .Alerts }} alerts.</i>
+{{ end }}
+{{- end }}
