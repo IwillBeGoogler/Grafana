@@ -1,5 +1,5 @@
 # Lean monitoring stack for IWillBeGoogler. Joins the app network (iwillbegoogler_default) and scrapes it.
-# Memory budget: ~800M total.
+# Memory budget: ~900M total.
 name: iwillbegoogler-monitoring
 
 x-common: &common
@@ -102,6 +102,7 @@ services:
       GOMEMLIMIT: 90MiB
     volumes:
       - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - ./loki/rules.yml:/loki/rules/fake/rules.yml:ro
       - lokidata:/loki
     deploy: { resources: { limits: { memory: 112M, cpus: "0.3" } } }
 
@@ -121,6 +122,22 @@ services:
     pid: host
     volumes: ["/:/host:ro"]
     deploy: { resources: { limits: { memory: 24M, cpus: "0.1" } } }
+
+  cadvisor:
+    <<: *common
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.service
+      - --disable_metrics=percpu,sched,tcp,udp,advtcp,disk,diskIO,hugetlb,referenced_memory,cpu_topology,resctrl,memory_numa
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    deploy: { resources: { limits: { memory: 80M, cpus: "0.2" } } }
 
   postgres-exporter:
     <<: *common

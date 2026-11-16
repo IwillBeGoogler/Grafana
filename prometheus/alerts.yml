@@ -59,19 +59,81 @@ groups:
         annotations:
           summary: "Less than 10% memory available"
       - alert: HostDiskLow
-        expr: node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} < 0.10
+        expr: node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} < 0.15
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: "Disk {{ $labels.mountpoint }} below 10% free"
+          summary: "Disk {{ $labels.mountpoint }} below 15% free"
+      - alert: HostDiskCritical
+        expr: node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"} < 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk {{ $labels.mountpoint }} below 5% free"
+          description: "Free some space now (docker system prune, old logs and backups) before writes start failing."
+      - alert: HostDiskFillingUp
+        # the last 6 h of growth, extrapolated 12 h ahead: the disk is full before anyone looks
+        expr: predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|iso9660"}[6h], 12 * 3600) < 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk {{ $labels.mountpoint }} will be full within 12 hours"
       - alert: HostCpuHigh
-        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.90
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU above 85% for 10m"
+      - alert: HostCpuCritical
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.95
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CPU above 95% for 10m"
+  - name: containers
+    interval: 30s
+    rules:
+      - alert: ContainerDown
+        # cAdvisor keeps a stopped container's series for a while; "last seen" going stale means it stopped or was removed
+        expr: time() - container_last_seen{name!=""} > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} is down"
+          description: "Not seen for over a minute. docker ps -a, then docker logs --tail 100 {{ $labels.name }}."
+      - alert: ContainerRestarting
+        expr: changes(container_start_time_seconds{name!=""}[15m]) >= 3
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} restarted {{ $value }} times in 15m (crash loop)"
+          description: "docker logs --tail 100 {{ $labels.name }}"
+      - alert: ContainerOOMKilled
+        expr: increase(container_oom_events_total{name!=""}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} was killed for running out of memory"
+      - alert: ContainerMemoryNearLimit
+        expr: container_memory_working_set_bytes{name!=""} / (container_spec_memory_limit_bytes{name!=""} > 0) > 0.90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} uses over 90% of its memory limit"
+      - alert: ContainerCpuThrottled
+        expr: rate(container_cpu_cfs_throttled_periods_total{name!=""}[5m]) / rate(container_cpu_cfs_periods_total{name!=""}[5m]) > 0.5
         for: 15m
         labels:
           severity: warning
         annotations:
-          summary: "CPU above 90% for 15m"
+          summary: "Container {{ $labels.name }} is CPU-throttled more than half the time"
   - name: meta
     rules:
       # Always firing: proves Prometheus evaluates rules and reaches Alertmanager (routed to "null" there).

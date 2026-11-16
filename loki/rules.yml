@@ -1,0 +1,19 @@
+groups:
+  - name: logs
+    rules:
+      - alert: LogErrorsSpike
+        # apps ship their logs over OTLP; detected_level is added by Loki from the level field
+        expr: sum by (service_name) (count_over_time({service_name=~".+"} | detected_level=~"(?i)error|fatal|critical" [5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service_name }} logged {{ $value }} errors in 5m"
+          description: "Grafana, Explore, Loki: {service_name=\"{{ $labels.service_name }}\"} | detected_level=\"error\""
+      - alert: LogPanic
+        expr: sum by (service_name) (count_over_time({service_name=~".+"} |~ "panic:|fatal error:|runtime error:" [5m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service_name }} logged a panic"
+          description: "Grafana, Explore, Loki: {service_name=\"{{ $labels.service_name }}\"} |~ \"panic\""

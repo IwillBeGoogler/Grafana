@@ -20,3 +20,10 @@ compactor:
   working_directory: /loki/compactor
   retention_enabled: true
   delete_request_store: filesystem
+ruler:
+  # log alerts go to the same Alertmanager (and so the same Telegram chat) as the metric alerts
+  alertmanager_url: http://alertmanager:9093
+  storage: { type: local, local: { directory: /loki/rules } }
+  rule_path: /loki/rules-tmp
+  enable_api: false
+  evaluation_interval: 1m
