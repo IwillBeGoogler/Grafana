@@ -8,6 +8,11 @@ updates:
     groups:
       images:
         patterns: ["*"]
+    ignore:
+      # Tempo 3 drops the single-binary config (ingester, compactor, metrics_generator.traces_storage) for a
+      # Kafka-based ingest path, so tempo/tempo.yml must be rewritten by hand before moving off 2.x.
+      - dependency-name: grafana/tempo
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
